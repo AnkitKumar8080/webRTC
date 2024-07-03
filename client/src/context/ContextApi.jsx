@@ -33,12 +33,18 @@ export default function ContextApiProvider({ children }) {
   const fetchUserMedia = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
+        // audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
         video: true,
       });
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+        localVideoRef.current.muted = true; // mute the local video to prevent feedback
       }
       localStreamRef.current = stream;
     } catch (error) {
