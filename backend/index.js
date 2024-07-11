@@ -1,6 +1,6 @@
 import fs from "fs";
-import https from "https";
-// import http from "http";
+// import https from "https";
+import http from "http";
 import express from "express";
 import { Server as CreateSocketServer } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
@@ -9,16 +9,17 @@ import { v4 as uuidv4 } from "uuid";
 // We generated them with mkcert
 // $ mkcert create-ca
 // $ mkcert create-cert
-const key = fs.readFileSync("cert.key");
-const cert = fs.readFileSync("cert.crt");
+
+// const key = fs.readFileSync("cert.key");
+// const cert = fs.readFileSync("cert.crt");
 
 // Change our express setup so we can use HTTPS
 // Pass the key and cert to createServer on HTTPS
 
-const app = express();
-const expressServer = https.createServer({ key, cert }, app);
+// const app = express();
+// const expressServer = https.createServer({ key, cert }, app);
 
-// const expressServer = http.createServer(express());
+const expressServer = http.createServer(express());
 
 // Create our Socket.io server... it will listen to our express port
 const io = new CreateSocketServer(expressServer, {
@@ -27,7 +28,7 @@ const io = new CreateSocketServer(expressServer, {
     //   "https://127.0.0.1:5173",
     //   "https://192.168.0.195:5173", // if using a phone or another computer
     // ],
-    origin: "*",
+    origin: "http://localhost:5173", // Corrected origin format
     methods: ["GET", "POST"],
   },
 });
@@ -46,13 +47,22 @@ const offers = [
   // answer
   // answererIceCandidates
 ];
-const connectedSockets = [
-  // userId, socketId
-];
+// const connectedSockets = [
+//   // userId, socketId
+// ];
+
+const connectedSockets = new Map();
 
 io.on("connection", (socket) => {
-  // Generate a unique user ID for each connection
-  const userId = uuidv4();
+  // Get a userId from client or generate own Generate a unique user ID for each connection
+  const receivedUserId = socket.handshake.auth.userId;
+  let userId;
+
+  if (!receivedUserId) {
+    userId = uuidv4();
+  } else {
+    userId = receivedUserId;
+  }
 
   console.log(`\nUser: ${userId} connected\nsocketId: ${socket.id}`);
 
@@ -60,7 +70,8 @@ io.on("connection", (socket) => {
   socket.emit("assignUserId", userId);
 
   // Push the socket details into connectedSocket array
-  connectedSockets.push({ userId, socketId: socket.id });
+
+  connectedSockets.set(userId, { userId, socketId: socket.id });
 
   // Listen for new offers
   socket.on("newOffer", ({ newOffer, sendToUserId }) => {
@@ -78,9 +89,7 @@ io.on("connection", (socket) => {
     offers.push(newOfferObj);
 
     // Get the socket id to whom the offer to be sent
-    const sendToSocket = connectedSockets.find(
-      (socket) => socket.userId === sendToUserId
-    );
+    const sendToSocket = connectedSockets.get(sendToUserId);
 
     if (!sendToSocket) {
       console.log("No matching user socket found");
@@ -95,9 +104,7 @@ io.on("connection", (socket) => {
   // Listen for new answers
   socket.on("newAnswer", (offerObj, ackFunction) => {
     // Emit the answer offer back to client1, so first search for client1 socket
-    const socketToAnswer = connectedSockets.find(
-      (client) => client.userId === offerObj.offererUserId
-    );
+    const socketToAnswer = connectedSockets.get(offerObj.offererUserId);
 
     if (!socketToAnswer) {
       console.log("No matching offerer object found");
@@ -158,8 +165,8 @@ io.on("connection", (socket) => {
       // Now what if the answerer ICE candidates already exist before the offerer,
       // so in this case send all the answerer ICE candidates to the answerer
       if (offerToUpdate && offerToUpdate.answererUserId) {
-        const socketToSendTo = connectedSockets.find(
-          (socket) => socket.userId === offerToUpdate.answererUserId
+        const socketToSendTo = connectedSockets.get(
+          offerToUpdate.answererUserId
         );
 
         // If the socket info is found then we emit ICE candidates to the answerer
@@ -185,9 +192,7 @@ io.on("connection", (socket) => {
       }
 
       // Find the offerer socketId
-      const socketToSendTo = connectedSockets.find(
-        (socket) => socket.userId === offerToUpdate.offererUserId
-      );
+      const socketToSendTo = connectedSockets.get(offerToUpdate.offererUserId);
 
       // Emit the ICE candidate to the offerer
       if (socketToSendTo) {
@@ -199,6 +204,17 @@ io.on("connection", (socket) => {
           "ICE candidate received but could not find offerer (didIOffer: false)"
         );
       }
+    }
+  });
+
+  // hangup the call event
+  socket.on("hangupCall", (sendToUserId) => {
+    const sendToUser = connectedSockets.get(sendToUserId);
+
+    if (sendToUser) {
+      socket.to(sendToUser.socketId).emit("hangupCallReq", true);
+    } else {
+      console.log("No matching user socket found to hang up call");
     }
   });
 });

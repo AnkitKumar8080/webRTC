@@ -6,9 +6,9 @@ const contextApi = createContext(null);
 export const useContextApi = () => useContext(contextApi);
 
 const getSocket = () => {
-  return socketio("https://signallingserver.bytebreeze.xyz/", {
+  return socketio("http://192.168.0.195:8180/", {
     secure: true,
-    rejectUnauthorized: false, // this allows self-signed certificates
+    // rejectUnauthorized: false, // this allows self-signed certificates
   });
 };
 

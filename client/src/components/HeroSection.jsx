@@ -16,7 +16,10 @@ export default function HeroSection() {
     <div className="flex flex-col text-white justify-center items-center">
       <div className="m-10">
         <span>Your UserId:</span>
-        <span className="bg-gray-800 p-2 rounded-md"> {userId}</span>
+        <span className="bg-gray-800 p-2 rounded-md">
+          {" "}
+          {userId ? userId : "Generating userId..."}
+        </span>
         <span
           className="mx-2 text-2xl cursor-pointer"
           onClick={() => navigator.clipboard.writeText(userId)}
@@ -25,7 +28,7 @@ export default function HeroSection() {
         </span>
       </div>
       <div className="pt-6 flex flex-col items-center justify-center">
-        <h2 className="text-2xl font-bold">Enter userId to call</h2>
+        <h2 className="text-2xl font-bold">Enter other peer userId to call</h2>
         <input
           type="text"
           placeholder="User ID"
